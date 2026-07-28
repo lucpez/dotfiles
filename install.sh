@@ -17,3 +17,5 @@ link() {
   ln -sf "$src" "$dst"
   echo "Linked $dst"
 }
+
+link git/gitconfig .gitconfig

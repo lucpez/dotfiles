@@ -1,0 +1,15 @@
+[user]
+	email = 80959988+lucpez@users.noreply.github.com
+	name = lucpez
+[init]
+	defaultBranch = main
+[alias]
+	lg = log --graph --oneline
+[pull]
+	rebase = true
+[fetch]
+	prune = true
+[core]
+	editor = vim
+[push]
+	autoSetupRemote = true
