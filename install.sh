@@ -20,3 +20,4 @@ link() {
 
 link git/gitconfig .gitconfig
 link tmux/tmux.conf .tmux.conf
+link vim/vimrc .vimrc

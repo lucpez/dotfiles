@@ -1,0 +1,17 @@
+" --- Load system defaults ---
+if filereadable(expand("$VIMRUNTIME/defaults.vim"))
+  source $VIMRUNTIME/defaults.vim
+endif
+
+" --- Copy to clip.exe if on WSL ---
+if system('uname -r') =~ "microsoft"
+  augroup WSLYank
+    autocmd!
+    autocmd TextYankPost * call system('/mnt/c/Windows/System32/clip.exe', @")
+  augroup END
+endif
+
+" --- Overrides ---
+set hlsearch                  " highlight all search matches (:noh to clear)
+set keymodel=startsel,stopsel " Shift+movement starts/stops selection
+set selectmode=key            " Shift+arrow = Select mode, like GUI editors
