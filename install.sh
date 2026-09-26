@@ -22,3 +22,4 @@ link git/gitconfig .gitconfig
 link tmux/tmux.conf .tmux.conf
 link vim/vimrc .vimrc
 link bash/bashrc .bashrc
+link bash/bash_profile .bash_profile
