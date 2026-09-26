@@ -6,10 +6,7 @@
 [[ $- != *i* ]] && return
 
 # SSH agent
-if [ -z "$SSH_AUTH_SOCK" ]; then
-   eval "$(ssh-agent -s)" > /dev/null
-   ssh-add ~/.ssh/id_ed25519_github 2>/dev/null
-fi
+eval "$(keychain --eval --quiet --immediate id_ed25519_github)"
 
 alias ls='ls --color=auto'
 alias grep='grep --color=auto'
