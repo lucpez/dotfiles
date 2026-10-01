@@ -23,3 +23,5 @@ link tmux/tmux.conf .tmux.conf
 link vim/vimrc .vimrc
 link bash/bashrc .bashrc
 link bash/bash_profile .bash_profile
+link claude/settings.json .claude/settings.json
+link claude/statusline.sh .claude/statusline.sh

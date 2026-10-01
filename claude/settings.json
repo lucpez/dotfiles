@@ -1,0 +1,19 @@
+{
+  "model": "sonnet",
+  "modelSettings": {
+    "claude-sonnet-5-5": {
+      "effortLevel": "high"
+    }
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh",
+    "padding": 0,
+    "refreshInterval": 60
+  },
+  "feedbackDrafts": "off",
+  "tui": "fullscreen",
+  "theme": "dark-ansi",
+  "preferredNotifChannel": "terminal_bell",
+  "autoCompactEnabled": false
+}
