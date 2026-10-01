@@ -1,10 +1,5 @@
 {
   "model": "sonnet",
-  "modelSettings": {
-    "claude-sonnet-5-5": {
-      "effortLevel": "high"
-    }
-  },
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline.sh",
@@ -12,6 +7,11 @@
     "refreshInterval": 60
   },
   "feedbackDrafts": "off",
+  "modelSettings": {
+    "claude-sonnet-5-5": {
+      "effortLevel": "high"
+    }
+  },
   "tui": "fullscreen",
   "theme": "dark-ansi",
   "preferredNotifChannel": "terminal_bell",
