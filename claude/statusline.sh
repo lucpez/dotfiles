@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Claude Code status line:
-#   <model> <effort> with <cache> in <repo@branch> | <agent> <vim> <worktree> <PR>      ctx · 5h · 7d · cost
+#   <model> <effort> with <cache> in <repo@branch> on <worktree> for <PR> as <agent> using <vim>      ctx · 5h · 7d · cost
+#   (session block, then usage block; the usage block drops to a second row when both do not fit)
 # Needs bash >= 4.2, jq and git.
 
 if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 2) )); then
@@ -19,7 +20,11 @@ DOTS=5                      # length of the 5h and 7d meters
 BRANCH_MAX_CHAR=28          # Branch names longer than this number of characters will be truncated
 GIT_TTL=5                   # seconds a cached `git status` stays fresh
 MARGIN=4                    # columns kept free at the right edge
-MIN_GAP=3                   # min spaces between the left and right blocks
+MIN_GAP=3                   # min spaces between the session and usage blocks on one row
+ROWS=${STATUSLINE_ROWS:-auto} # 2: always two rows | 1: one row, two only if it does not fit | auto: by pane width
+SESSION_BLOCK_WIDTH=125     # auto only: columns the session block (model … repo … extras) takes when nearly full
+USAGE_BLOCK_WIDTH=78        # auto only: columns the usage block (ctx · 5h · 7d · cost) takes when nearly full
+                            # auto uses one row only if SESSION + USAGE + MIN_GAP + MARGIN <= COLUMNS, else two
 
 RST= BOLD= DIM= GRAY= GREEN= YELLOW= ORANGE= RED= BLUE= CYAN= MAGENTA=
 if [[ -z ${NO_COLOR:-} ]]; then
@@ -28,7 +33,7 @@ if [[ -z ${NO_COLOR:-} ]]; then
 fi
 SEV=("$GRAY" "$GREEN" "$YELLOW" "$ORANGE" "$RED") # color by severity 0-4
 SEP=" ${DIM}·${RST} "                            # inside a block
-GAP=" ${DIM}|${RST} "                             # between blocks
+GAP=" "                                          # between the session block and its extras
 QUARTERS=(○ ◔ ◑ ◕ ●)                            # empty to full
 
 # ---- input: jq rounds and defaults, so every field below is text or an integer --
@@ -243,12 +248,11 @@ project_text() { # folder, or repo@branch +1 ~2 ?3 ↑1 ↓2 inside a git repo
   REPLY="${repo}${DIM}@${RST}${branch}${parts:+ ${parts[*]}}"
 }
 
-pr_text() { # PR #123 approved
+pr_text() { # for PR #123 approved (changes_requested is not shown)
   REPLY=
   [[ -n $pr ]] || return
-  [[ $pr_state == changes_requested ]] && pr_state=changes
-  tag PR "#$pr"
-  [[ -n $pr_state ]] && REPLY+=" ${DIM}${pr_state}${RST}"
+  tag for "PR #$pr"
+  [[ -n $pr_state && $pr_state != changes_requested ]] && REPLY+=" ${DIM}${pr_state}${RST}"
 }
 
 ctx_text() { # ctx ◑ 42% of 1M /compact?
@@ -295,36 +299,50 @@ cost_text() { # ~$1.24 over 47m (a list-price estimate, hence the tilde)
 
 # ---- main ---------------------------------------------------------------------
 main() {
-  local ident left right free spaces= extras=() c h w
+  local ident session_block usage_block ulen two free spaces= extras=() c h w
   read_input
   now=${STATUSLINE_NOW:-}
   [[ $now =~ ^[0-9]+$ ]] || printf -v now '%(%s)T' -1
   cols=${COLUMNS:-100}
   [[ $cols =~ ^[0-9]+$ ]] || cols=100
 
-  # left block: "<model> <effort> <fast> with <cache> in <project>" | agent vim worktree PR
+  # session block: "<model> <effort> <fast> with <cache> in <project> on <worktree> for <PR> as <agent> using <vim>"
   model_text; ident=$REPLY
   effort_text; join_by ' ' "$ident" "$REPLY" "${fast:+fast}"; ident=$REPLY
-  cache_text; left="$ident ${DIM}with${RST} $REPLY"
-  project_text; [[ -n $REPLY ]] && left+=" ${DIM}in${RST} $REPLY"
-  tag agent "$agent";       extras+=("$REPLY")
-  tag vim "$vim";           extras+=("$REPLY")
-  tag worktree "$worktree"; extras+=("$REPLY")
-  pr_text;                  extras+=("$REPLY")
-  join_by "$GAP" "$left" "${extras[@]}"; left=$REPLY
+  cache_text; session_block="$ident ${DIM}with${RST} $REPLY"
+  project_text; [[ -n $REPLY ]] && session_block+=" ${DIM}in${RST} $REPLY"
+  tag on "${worktree:+worktree $worktree}";      extras+=("$REPLY")
+  pr_text;                                       extras+=("$REPLY")
+  tag as "$agent";                               extras+=("$REPLY")
+  tag using "${vim:+vim $vim}";                  extras+=("$REPLY")
+  join_by "$GAP" "$session_block" "${extras[@]}"; session_block=$REPLY
 
-  # right block, pushed to the right edge
+  # usage block, pushed to the right edge
   ctx_text; c=$REPLY
   limit_text 5h "$five" "$five_at" $(( 5 * 3600 )); h=$REPLY
   limit_text 7d "$week" "$week_at" $(( 7 * 86400 )); w=$REPLY
   cost_text
-  join_by "$SEP" "$c" "$h" "$w" "$REPLY"; right=$REPLY
+  join_by "$SEP" "$c" "$h" "$w" "$REPLY"; usage_block=$REPLY
 
-  visible_length "$left";  free=$(( cols - MARGIN - REPLY ))
-  visible_length "$right"; free=$(( free - REPLY ))
-  (( free < MIN_GAP )) && free=$MIN_GAP
-  [[ -n $right ]] && printf -v spaces '%*s' "$free" ''
-  printf '%s\n' "${left}${spaces}${right}"
+  visible_length "$session_block"; free=$(( cols - MARGIN - REPLY ))
+  visible_length "$usage_block";   ulen=$REPLY; free=$(( free - ulen ))
+  # with auto the row count depends on the width only, so it does not jump as git or extras change;
+  # `free < MIN_GAP` is the safety net when the blocks do not fit on one row
+  two=
+  case $ROWS in
+    2) two=1 ;;
+    1) ;;
+    *) (( SESSION_BLOCK_WIDTH + USAGE_BLOCK_WIDTH + MIN_GAP + MARGIN > cols )) && two=1 ;;   # auto
+  esac
+  if [[ -n $two ]] || (( free < MIN_GAP )); then
+    # Claude Code strips leading spaces from each row, so a gray line (not spaces) fills the gap:
+    # it keeps the usage block at the right edge and tells the two rows apart
+    printf -v spaces '%*s' "$(( cols - MARGIN > ulen + 1 ? cols - MARGIN - ulen - 1 : 0 ))" ''
+    printf '%s\n%s\n' "$session_block" "${GRAY}${spaces// /─}${RST} ${usage_block}"
+  else
+    printf -v spaces '%*s' "$free" ''
+    printf '%s\n' "${session_block}${spaces}${usage_block}"
+  fi
 }
 
 main
